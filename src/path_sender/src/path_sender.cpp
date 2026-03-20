@@ -191,19 +191,19 @@ void PathSender::timeCB(const ros::TimerEvent& event)
           std::vector<geometry_msgs::Point> temp_path=paths[end_num-1];
           std::reverse(temp_path.begin(),temp_path.end());//将终点到第转运站的路径倒序
           path.insert(path.end(),temp_path.begin(), temp_path.end());//将转运站到终点的路径加入
-          path.emplace_back(end_point[end_num]);//终点后面一点
-          geometry_msgs::Point temp_point;
-          temp_point.x=end_point[end_num].x;
-          temp_point.y=end_point[end_num].y;
-          temp_point.z=end_point[end_num].z+150;
-          path.emplace_back(temp_point);//终点后面一点向上150m
-          temp_point.x=end_point[initial_num].x;
-          temp_point.y=end_point[initial_num].y;
-          temp_point.z=end_point[initial_num].z+150;
-          path.emplace_back(temp_point);//起点后面一点向上150m
-          path.emplace_back(end_point[initial_num]);//起点后面一点
-          path.emplace_back(station[initial_num]);//起点后面一点
-          std::cout<<"path_get"<<std::endl;
+        //   path.emplace_back(end_point[end_num]);//终点后面一点
+        //   geometry_msgs::Point temp_point;
+        //   temp_point.x=end_point[end_num].x;
+        //   temp_point.y=end_point[end_num].y;
+        //   temp_point.z=end_point[end_num].z;
+        //   path.emplace_back(temp_point);//终点后面一点向上150m
+        //   temp_point.x=end_point[initial_num].x;
+        //   temp_point.y=end_point[initial_num].y;
+        //   temp_point.z=end_point[initial_num].z;
+        //   path.emplace_back(temp_point);//起点后面一点向上150m
+        //   path.emplace_back(end_point[initial_num]);//起点后面一点
+        //   path.emplace_back(station[initial_num]);//起点后面一点
+        //   std::cout<<"path_get"<<std::endl;
 
           path_get=true;
       }

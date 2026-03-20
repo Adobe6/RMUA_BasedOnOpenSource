@@ -391,9 +391,9 @@ if (cnt < 100)
 	// std::cout<<"vel_cmd.vx"<<00000vel_cmd.vx<<std::endl;
 	// std::cout<<"vel_cmd.vy"<<vel_cmd.vy<<std::endl;
 	vel_cmd.vz = cmd_data.v(2)*cos(pitch);//(-cmd_data.v(0)*cos(yaw)+cmd_data.v(1)*sin(yaw))*cos(pitch);
-    vel_cmd.vx = rotatedPoint(0)*1.5;
-	vel_cmd.vy = -rotatedPoint(1)*1.5;
-	vel_cmd.vz = -rotatedPoint(2)*1.5;
+    vel_cmd.vx = rotatedPoint(0)*2.0;
+	vel_cmd.vy = -rotatedPoint(1)*2.0;
+	vel_cmd.vz = -rotatedPoint(2)*2.0;
 	
 	
 	// if (cnt < 100)
