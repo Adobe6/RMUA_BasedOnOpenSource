@@ -391,9 +391,9 @@ if (cnt < 100)
 	// std::cout<<"vel_cmd.vx"<<00000vel_cmd.vx<<std::endl;
 	// std::cout<<"vel_cmd.vy"<<vel_cmd.vy<<std::endl;
 	vel_cmd.vz = cmd_data.v(2)*cos(pitch);//(-cmd_data.v(0)*cos(yaw)+cmd_data.v(1)*sin(yaw))*cos(pitch);
-    vel_cmd.vx = rotatedPoint(0)*2.0;
-	vel_cmd.vy = -rotatedPoint(1)*2.0;
-	vel_cmd.vz = -rotatedPoint(2)*2.0;
+    vel_cmd.vx = rotatedPoint(0)*1.5;
+	vel_cmd.vy = -rotatedPoint(1)*1.5;
+	vel_cmd.vz = -rotatedPoint(2)*1.5;
 	
 	
 	// if (cnt < 100)
@@ -496,8 +496,8 @@ Eigen::Vector3d Controller::computeFeedBackControlBodyrates(const Eigen::Quatern
   const Eigen::Quaterniond q_e = attitude_estimate.inverse() * desired_attitude;
   // Compute desired body rates from control error
   Eigen::Vector3d bodyrates;
-  double krp = param.track_gain.Krp * 0.3;
-  double kyaw = param.track_gain.Kyaw * 0.3;
+  double krp = param.track_gain.Krp;
+  double kyaw = param.track_gain.Kyaw;
   double kdrp = param.Kdrp;
   double kdyaw = param.Kdyaw;
 
