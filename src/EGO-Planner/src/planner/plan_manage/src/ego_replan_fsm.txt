@@ -992,34 +992,8 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
 
   void EGOReplanFSM::WayPointsCallback(const path_sender::WayPoints &msg)
   {
-    if (msg.points.empty())
-    {
-      ROS_WARN("[WAYPOINT_CB] Received empty waypoints, ignore.");
+    if (flag_points_subd_)
       return;
-    }
-
-    bool first_msg = !flag_points_subd_;
-    bool changed = first_msg || waypoint_num_ != (int)msg.points.size();
-
-    if (!changed)
-    {
-      for (int i = 0; i < (int)msg.points.size(); ++i)
-      {
-        if (waypoints_[i][0] != msg.points[i].x ||
-            waypoints_[i][1] != msg.points[i].y ||
-            waypoints_[i][2] != msg.points[i].z + 0.32)
-        {
-          changed = true;
-          break;
-        }
-      }
-    }
-
-    if (!changed)
-    {
-      ROS_INFO("[WAYPOINT_CB] Waypoints unchanged, ignore.");
-      return;
-    }
 
     waypoint_num_ = msg.points.size();
     for (int i = 0; i < waypoint_num_; i++)
@@ -1029,24 +1003,9 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
       waypoints_[i][2] = msg.points[i].z + 0.32;
     }
 
-    std::cout << "[WAYPOINT_CB] Received " << waypoint_num_ << " waypoints." << std::endl;
+    std::cout << "Received " << waypoint_num_ << " waypoints." << std::endl;
 
     flag_points_subd_ = true;
-    have_trigger_ = true;
-
-    // Keep the original startup rhythm of (4):
-    // the first batch only unblocks init(), then init() calls readGivenWpsAndPlan().
-    if (first_msg)
-      return;
-
-    if (!have_odom_)
-    {
-      ROS_WARN("[WAYPOINT_CB] Updated waypoints received, but odom is not ready.");
-      return;
-    }
-
-    ROS_WARN("[WAYPOINT_CB] Updated waypoint batch accepted, replanning from new batch.");
-    readGivenWpsAndPlan();
   }
 
   bool EGOReplanFSM::measureGroundHeight(double &height)

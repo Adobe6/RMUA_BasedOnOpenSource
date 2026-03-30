@@ -709,7 +709,23 @@ void publish_odometry(const ros::Publisher & pubOdomAftMapped)
     odomAftMapped.header.frame_id = "odom";
     odomAftMapped.child_frame_id = "body";
     // odomAftMapped.header.stamp = ros::Time().fromSec(last_imu_ptr->header.stamp.toSec() + diff_time);// ros::Time().fromSec(lidar_end_time);
-    odomAftMapped.header.stamp = ros::Time().now();// ros::Time().fromSec(lidar_end_time);
+    // odomAftMapped.header.stamp = ros::Time().now();// ros::Time().fromSec(lidar_end_time);
+
+    ros::Time odom_stamp = ros::Time().fromSec(lidar_end_time);
+
+mtx_buffer.lock();
+if (!realtime_imu_buffer.empty())
+{
+    odom_stamp = realtime_imu_buffer.back()->header.stamp;
+}
+else if (last_imu_ptr)
+{
+    odom_stamp = last_imu_ptr->header.stamp;
+}
+mtx_buffer.unlock();
+
+odomAftMapped.header.stamp = odom_stamp;
+
     set_posestamp(odomAftMapped.pose);
     set_velstamp(odomAftMapped.twist);
     pubOdomAftMapped.publish(odomAftMapped);
@@ -1139,7 +1155,7 @@ int main(int argc, char** argv)
             realtime_imu_buffer = imu_buffer;
             last_imu_ptr = std::make_unique<sensor_msgs::Imu>(*(Measures.imu.back()));
             mtx_buffer.unlock();
-            last_imu_ptr->header.stamp = ros::Time().fromSec(Measures.lidar_beg_time);
+            // last_imu_ptr->header.stamp = ros::Time().fromSec(Measures.lidar_beg_time);
             flg_first_ekf = true;
             flg_updated = true;
 

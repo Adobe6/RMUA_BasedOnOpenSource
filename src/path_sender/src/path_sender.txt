@@ -6,25 +6,16 @@
 #include <filesystem>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
-#include <geometry_msgs/Twist.h>  // 速度指令消息头文件
-#include <cmath>                  // 数学计算（距离/速度）
-
-// 全局速度控制相关参数
-const double MAX_LINEAR_SPEED = 3.0;    // 最大线速度 (m/s)，可按需调整
-const double WAYPOINT_TOLERANCE = 0.5;  // 航点到达阈值 (m)
-int current_waypoint_idx = 0;           // 当前目标航点索引
-bool velocity_control_start = false;    // 速度控制启动标志
-
-// 速度指令发布器
-ros::Publisher vel_cmd_publisher;
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "path_sender"); 
-    ros::NodeHandle n; 
+
+    ros::init(argc, argv, "path_sender"); // 初始化ros 节点，命名为 basic
+    ros::NodeHandle n; // 创建node控制句柄
 
     PathSender go(&n);
 
+    //n.getParam("paths",paths);
     return 0;
 }
 
@@ -52,6 +43,8 @@ std::vector<std::vector<geometry_msgs::Point>> loadPathsFromYAML(const std::stri
                 point.y = point_node[1].as<double>();
                 point.z = point_node[2].as<double>();
 
+               // std::cout << "Point: " << point.x << ", " << point.y << ", " << point.z << std::endl;
+
                 path.push_back(point);
             }
             paths.push_back(path);
@@ -62,101 +55,36 @@ std::vector<std::vector<geometry_msgs::Point>> loadPathsFromYAML(const std::stri
 
     return paths;
 }
-
 void PathSender::POintSet()
 {
-    for (int i = 0; i < 13; ++i)
-    {
-        station[i].x = station_[i].x;
-        station[i].y = station_[i].y;
-        station[i].z = station_[i].z;
+   for (int i = 0; i < 13; ++i)
+        {
+            station[i].x = station_[i].x;
+            station[i].y = station_[i].y;
+            station[i].z = station_[i].z;
 
-        Transit_hub[i].x = Transit_hub_[i].x;
-        Transit_hub[i].y = Transit_hub_[i].y;
-        Transit_hub[i].z = Transit_hub_[i].z;
+            Transit_hub[i].x = Transit_hub_[i].x;
+            Transit_hub[i].y = Transit_hub_[i].y;
+            Transit_hub[i].z = Transit_hub_[i].z;
 
-        end_point[i].x = end_point_[i].x;
-        end_point[i].y = end_point_[i].y;
-        end_point[i].z = end_point_[i].z;
-    }
-}
-
-// 核心：计算当前位置到目标航点的速度指令
-void calculate_velocity_cmd(const geometry_msgs::PoseStamped::ConstPtr& current_pose, 
-                            const std::vector<geometry_msgs::Point>& full_path)
-{
-    if (!velocity_control_start || current_waypoint_idx >= full_path.size()) {
-        // 未启动/航点完成，发布停止指令
-        geometry_msgs::Twist stop_cmd;
-        vel_cmd_publisher.publish(stop_cmd);
-        if (current_waypoint_idx >= full_path.size()) {
-            ROS_INFO("All waypoints reached! Stop moving.");
-            velocity_control_start = false;
-            current_waypoint_idx = 0;
+            end_point[i].x = end_point_[i].x;
+            end_point[i].y = end_point_[i].y;
+            end_point[i].z = end_point_[i].z;
         }
-        return;
-    }
-
-    // 当前无人机位置（直接使用，无需改y/z）
-    double curr_x = current_pose->pose.position.x;
-    double curr_y = current_pose->pose.position.y;
-    double curr_z = current_pose->pose.position.z;
-
-    // 目标航点
-    geometry_msgs::Point target = full_path[current_waypoint_idx];
-    double dx = target.x - curr_x;
-    double dy = target.y - curr_y;
-    double dz = target.z - curr_z;
-
-    // 计算到目标航点的距离
-    double dist_to_target = sqrt(dx*dx + dy*dy + dz*dz);
-
-    // 到达当前航点，切换下一个
-    if (dist_to_target < WAYPOINT_TOLERANCE) {
-        current_waypoint_idx++;
-        ROS_INFO("Reached waypoint %d, switch to next.", current_waypoint_idx);
-        return;
-    }
-
-    // 生成速度指令（沿航点方向以最大速度飞行）
-    geometry_msgs::Twist vel_cmd;
-    vel_cmd.linear.x = (dx / dist_to_target) * MAX_LINEAR_SPEED;
-    vel_cmd.linear.y = (dy / dist_to_target) * MAX_LINEAR_SPEED;
-    vel_cmd.linear.z = (dz / dist_to_target) * MAX_LINEAR_SPEED;
-    // 角速度设为0（保持当前航向，如需转向可额外计算）
-    vel_cmd.angular.x = 0.0;
-    vel_cmd.angular.y = 0.0;
-    vel_cmd.angular.z = 0.0;
-
-    // 发布速度指令
-    vel_cmd_publisher.publish(vel_cmd);
 }
-
 PathSender::PathSender(ros::NodeHandle *nh)
 {  
+
     POintSet();
-    paths = loadPathsFromYAML(std::string("/home/m0nesy/basic_dev/src/path_sender/config/paths.yaml"));
+    paths=loadPathsFromYAML(std::string("/home/m0nesy/basic_dev/src/path_sender/config/paths.yaml"));
+    //无人机信息通过如下命令订阅，当收到消息时自动回调对应的函数
+    initial_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/initial_pose", 1, std::bind(&PathSender::initial_pose_cb, this, std::placeholders::_1));//状态真值，用于赛道一
+    end_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/end_goal", 1, std::bind(&PathSender::end_pose_cb, this, std::placeholders::_1));//状态真值，用于赛道一
+    gps_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/gps", 1, std::bind(&PathSender::gps_pose_cb, this, std::placeholders::_1));
+     timer = nh->createTimer(ros::Duration(1.0),&PathSender::timeCB,this);
 
-    // 1. 订阅无人机状态（用于速度规划）
-    initial_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/initial_pose", 1, 
-                            std::bind(&PathSender::initial_pose_cb, this, std::placeholders::_1));
-    end_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/end_goal", 1, 
-                            std::bind(&PathSender::end_pose_cb, this, std::placeholders::_1));
-    // 订阅GPS位姿（核心：用于实时计算速度指令）
-    gps_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/gps", 1, 
-                            [this](const geometry_msgs::PoseStamped::ConstPtr& msg) {
-                                if (velocity_control_start) {
-                                    calculate_velocity_cmd(msg, this->path);
-                                }
-                                this->gps_pose_cb(msg); // 保留原有GPS处理逻辑
-                            });
-
-    // 2. 发布器初始化
-    timer = nh->createTimer(ros::Duration(1.0),&PathSender::timeCB,this);
     waypoint_publisher = nh->advertise<path_sender::WayPoints>("/waypoints", 1);
     edited_gps_publisher = nh->advertise<geometry_msgs::PoseWithCovarianceStamped>("/airsim_node/drone_1/edited_gps", 1);
-    // 新增：速度指令发布器（话题名适配PX4/AirSim）
-    vel_cmd_publisher = nh->advertise<geometry_msgs::Twist>("/airsim_node/drone_1/vel_cmd_body_frame", 10);
 
     ros::spin();
 }
@@ -165,32 +93,37 @@ PathSender::~PathSender()
 {
 }
 
+
 void PathSender::initial_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
 { 
-    if(!initial_num_get)
-    for(int i=1;i<=12;i++)
+  std::cout<<"initial_num_get:"<<initial_num_get<<"initian_num="<<initial_num<<std::endl;
+  if(!initial_num_get)
+  for(int i=1;i<=12;i++)
+  {
+    if(abs(msg->pose.position.x -station[i].x) <20)
     {
-        if(abs(msg->pose.position.x - station[i].x) <5)
-        {
-            initial_num = i;
-            initial_num_get = true;
-            break;
-        }
-    }    
+      initial_num = i;
+      initial_num_get = true;
+      break;
+    }
+  }    
+
 }
 
 void PathSender::end_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
 {
-    if(!end_num_get)
-    for(int i=1;i<=12;i++)
+ std::cout<<"end_num_get5555555555555:"<<end_num_get<<"end_num="<<end_num<<std::endl;
+  if(!end_num_get)
+  for(int i=1;i<=12;i++)
+  {
+    if(abs(msg->pose.position.x -station[i].x) <10)
     {
-        if(abs(msg->pose.position.x - station[i].x) <5)
-        {
-            end_num = i;
-            end_num_get = true;
-            break;
-        }
+      end_num = i;
+      end_num_get = true;
+      break;
     }
+  }
+
 }
 
 void PathSender::gps_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
@@ -200,12 +133,48 @@ void PathSender::gps_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
     edited_gps.header.frame_id = "map";
     edited_gps.pose.pose = msg->pose;
 
+    // static tf2_ros::TransformBroadcaster br;
+    // geometry_msgs::TransformStamped transformStamped;
+
+    // transformStamped.header.stamp = ros::Time::now();
+    // transformStamped.header.frame_id = "gps";
+    // transformStamped.child_frame_id = "drone";
+    // transformStamped.transform.translation.x = msg->pose.position.x;
+    // transformStamped.transform.translation.y = msg->pose.position.y;
+    // transformStamped.transform.translation.z = msg->pose.position.z;
+    // transformStamped.transform.rotation = msg->pose.orientation;
+
+    // br.sendTransform(transformStamped);
+
+    // edited_gps.pose.pose.position.y = -edited_gps.pose.pose.position.y;
+    // edited_gps.pose.pose.position.z = -edited_gps.pose.pose.position.z;
+
+    // for (int i = 0; i < 36; ++i) {
+    //   edited_gps.pose.covariance[i] = 0.0;
+    // }
+    // // Example covariance values, adjust as needed
     edited_gps.pose.covariance[0] = 1e-7;   // x
     edited_gps.pose.covariance[7] = 1e-7;   // y
     edited_gps.pose.covariance[14] = 1e-7;  // z
-    edited_gps.pose.covariance[21] = 0.1;   // roll
-    edited_gps.pose.covariance[28] = 0.1;   // pitch
-    edited_gps.pose.covariance[35] = 0.1;   // yaw
+    edited_gps.pose.covariance[21] = 0.1;  // roll
+    edited_gps.pose.covariance[28] = 0.1;  // pitch
+    edited_gps.pose.covariance[35] = 0.1;  // yaw
+    // tf2::Quaternion q;
+    // tf2::fromMsg(edited_gps.pose.pose.orientation, q);
+    // tf2::Matrix3x3 m(q);
+
+    // tf2::Matrix3x3 transform(
+    //   1, 0, 0,
+    //   0, -1, 0,
+    //   0, 0, -1
+    // );
+
+    // m = transform * m * transform;
+
+    // tf2::Quaternion new_q;
+    // m.getRotation(new_q);
+
+    // edited_gps.pose.pose.orientation = tf2::toMsg(new_q);
 
     edited_gps_publisher.publish(edited_gps);
 }
@@ -214,28 +183,41 @@ void PathSender::timeCB(const ros::TimerEvent& event)
 {
     if(!path_get)
     {
-        if(initial_num_get && end_num_get)
-        {
-            // 拼接核心航点（保留原有逻辑，删除冗余）
-            path = paths[initial_num-1];
-            path.emplace_back(Transit_hub[initial_num]);
-            path.emplace_back(Transit_hub[end_num]);
-            std::vector<geometry_msgs::Point> temp_path = paths[end_num-1];
-            std::reverse(temp_path.begin(), temp_path.end());
-            path.insert(path.end(), temp_path.begin(), temp_path.end());
+      if(initial_num_get && end_num_get)
+      {
+          path= paths[initial_num-1];//将起点到第一个转运站的路径加入
+          path.emplace_back(Transit_hub[initial_num]);//中枢入口
+          path.emplace_back(Transit_hub[end_num]);//中枢出口
+          std::vector<geometry_msgs::Point> temp_path=paths[end_num-1];
+          std::reverse(temp_path.begin(),temp_path.end());//将终点到第转运站的路径倒序
+          path.insert(path.end(),temp_path.begin(), temp_path.end());//将转运站到终点的路径加入
+        //   path.emplace_back(end_point[end_num]);//终点后面一点
+        //   geometry_msgs::Point temp_point;
+        //   temp_point.x=end_point[end_num].x;
+        //   temp_point.y=end_point[end_num].y;
+        //   temp_point.z=end_point[end_num].z;
+        //   path.emplace_back(temp_point);//终点后面一点向上150m
+        //   temp_point.x=end_point[initial_num].x;
+        //   temp_point.y=end_point[initial_num].y;
+        //   temp_point.z=end_point[initial_num].z;
+        //   path.emplace_back(temp_point);//起点后面一点向上150m
+        //   path.emplace_back(end_point[initial_num]);//起点后面一点
+        //   path.emplace_back(station[initial_num]);//起点后面一点
+        //   std::cout<<"path_get"<<std::endl;
 
-            path_get = true;
-            velocity_control_start = true; // 启动速度控制
-            ROS_INFO("Path loaded! Start velocity control. Max speed: %.1f m/s", MAX_LINEAR_SPEED);
-        }
+          path_get=true;
+      }
     }
     else
     {
-        // 保留航点发布（兼容原有规划模块）
-        path_sender::WayPoints path_msg;
-        path_msg.points = this->path;
-        waypoint_publisher.publish(path_msg);
+      path_sender::WayPoints path;
+      path.points = this->path;
+      waypoint_publisher.publish(path);
     }
+
 }
+
+
+
 
 #endif

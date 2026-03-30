@@ -89,6 +89,8 @@ namespace ego_planner
     Eigen::Vector3d odom_pos_, odom_vel_, odom_acc_;     // odometry state
     std::vector<Eigen::Vector3d> wps_;
     Eigen::Vector3d last_wp;
+    Eigen::Vector3d last_end_vel;
+    double max_acc_;
     /* ROS utils */
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_;

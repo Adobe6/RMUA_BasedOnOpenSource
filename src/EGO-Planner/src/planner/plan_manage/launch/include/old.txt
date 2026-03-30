@@ -66,7 +66,7 @@
         <remap from="~grid_map/depth" to = "/drone_$(arg drone_id)_$(arg depth_topic)"/>
         <!-- planning fsm -->
         <param name="fsm/flight_type" value="$(arg flight_type)" type="int"/>
-        <param name="fsm/thresh_replan_time" value="0.10" type="double"/>
+        <param name="fsm/thresh_replan_time" value="0.02" type="double"/>
         <param name="fsm/planning_horizon" value="$(arg planning_horizon)" type="double"/>
         <!--always set to 1.5 times grater than sensing horizen-->
         <param name="fsm/emergency_time" value="3.0" type="double"/>
@@ -103,14 +103,14 @@
         <param name="fsm/waypoint9_x" value="$(arg point9_x)" type="double"/>
         <param name="fsm/waypoint9_y" value="$(arg point9_y)" type="double"/>
         <param name="fsm/waypoint9_z" value="$(arg point9_z)" type="double"/>
-        <param name="grid_map/resolution" value="0.1" />
+        <param name="grid_map/resolution" value="0.5" />
         <param name="grid_map/map_size_x" value="$(arg map_size_x_)" />
         <param name="grid_map/map_size_y" value="$(arg map_size_y_)" />
         <param name="grid_map/map_size_z" value="$(arg map_size_z_)" />
-        <param name="grid_map/local_update_range_x" value="10.0" />
-        <param name="grid_map/local_update_range_y" value="10.0" />
+        <param name="grid_map/local_update_range_x" value="7.0" />
+        <param name="grid_map/local_update_range_y" value="7.0" />
         <param name="grid_map/local_update_range_z" value="8.0" /> <!-- different meaning between grid_map.cpp and grid_map_bigmap.cpp -->
-        <param name="grid_map/obstacles_inflation" value="0.15" />
+        <param name="grid_map/obstacles_inflation" value="0.0" />
         <param name="grid_map/local_map_margin" value="10"/>
         <param name="grid_map/enable_virtual_wall" value="true"/>
         <param name="grid_map/virtual_ceil" value="200.0"/>
@@ -145,27 +145,27 @@
         <!-- planner manager -->
         <param name="manager/max_vel" value="$(arg max_vel)" type="double"/>
         <param name="manager/max_acc" value="$(arg max_acc)" type="double"/>
-        <param name="manager/polyTraj_piece_length" value="5" type="double"/> 
+        <param name="manager/polyTraj_piece_length" value="3.0" type="double"/> 
         <!-- 分段长度 -->
-        <param name="manager/feasibility_tolerance" value="0.2" type="double"/>,
+        <param name="manager/feasibility_tolerance" value="0.2" type="double"/>
         <param name="manager/planning_horizon" value="$(arg planning_horizon)" type="double"/>
         <param name="manager/use_multitopology_trajs" value="$(arg use_multitopology_trajs)" type="bool"/>
         <param name="manager/drone_id" value="$(arg drone_id)"/>
         <!-- trajectory optimization -->
         <param name="optimization/constraint_points_perPiece" value="3" type="int"/>
-        <param name="optimization/weight_obstacle" value="500.0" type="double"/>
+        <param name="optimization/weight_obstacle" value="1000.0" type="double"/>
         <!-- 避障权重 -->
-        <param name="optimization/weight_obstacle_soft" value="400.0" type="double"/>
+        <param name="optimization/weight_obstacle_soft" value="0.0" type="double"/>
         <param name="optimization/weight_swarm" value="0.0" type="double"/>
         <param name="optimization/weight_feasibility" value="100.0" type="double"/>
         <!-- 可行性权重 -->
-        <param name="optimization/weight_sqrvariance" value="100.0" type="double"/>
+        <param name="optimization/weight_sqrvariance" value="450.0" type="double"/>
         <!-- 方差权重 -->
-        <param name="optimization/weight_time" value="200.0" type="double"/>
+        <param name="optimization/weight_time" value="600.0" type="double"/>
         <!-- 时间权重 -->
-        <param name="optimization/obstacle_clearance" value="0.20" type="double"/>
+        <param name="optimization/obstacle_clearance" value="0.15" type="double"/>
         <!-- 避障容忍距离 -->
-        <param name="optimization/obstacle_clearance_soft" value="0.3" type="double"/>
+        <param name="optimization/obstacle_clearance_soft" value="0.0" type="double"/>
         <param name="optimization/swarm_clearance" value="0.0" type="double"/> <!-- heterogeneous support: my required clearance -->
         <param name="optimization/max_vel" value="$(arg max_vel)" type="double"/>
         <param name="optimization/max_acc" value="$(arg max_acc)" type="double"/>

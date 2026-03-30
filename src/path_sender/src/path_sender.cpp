@@ -74,7 +74,6 @@ void PathSender::POintSet()
 }
 PathSender::PathSender(ros::NodeHandle *nh)
 {  
-
     POintSet();
     paths=loadPathsFromYAML(std::string("/home/m0nesy/basic_dev/src/path_sender/config/paths.yaml"));
     //无人机信息通过如下命令订阅，当收到消息时自动回调对应的函数
@@ -96,37 +95,42 @@ PathSender::~PathSender()
 
 void PathSender::initial_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
 { 
-  //std::cout<<"initial_num_get:"<<initial_num_get<<"initian_num="<<initial_num<<std::endl;
-  if(!initial_num_get)
-  for(int i=1;i<=12;i++)
-  {
-    if(abs(msg->pose.position.x -station[i].x) <5)
-    {
-      initial_num = i;
-      initial_num_get = true;
-      break;
-    }
-  }    
 
+//   if(end_num==3){
+//     initial_num=1;
+//   }
+  initial_num_get = true;
+   
 }
 
 void PathSender::end_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
 {
- // std::cout<<"end_num_get:"<<end_num_get<<"end_num="<<end_num<<std::endl;
-  if(!end_num_get)
+
+
+  std::cout<<"end_num_get:"<<end_num_get<<" end_num="<<end_num<<std::endl;
+  std::cout<<"initial_num_get:"<<initial_num_get<<" init_num="<<initial_num<<std::endl;
+
   for(int i=1;i<=12;i++)
   {
-    if(abs(msg->pose.position.x -station[i].x) <5)
+    if(abs(msg->pose.position.x - station[i].x) < 15)
     {
       end_num = i;
       end_num_get = true;
-      break;
-    }
+    //   switch(end_num){
+    //     case 3:
+    //       initial_num=1;
+    //       initial_num_get =true;
+    //       break;
+    //     case 5:
+    //       initial_num=3;
+    //       initial_num_get =true;
+    //       break;
+    // }
+    break;
   }
-
 }
-
-void PathSender::gps_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
+}
+  void PathSender::gps_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
 {
     geometry_msgs::PoseWithCovarianceStamped edited_gps;
     edited_gps.header.stamp = ros::Time::now();
@@ -180,43 +184,31 @@ void PathSender::gps_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
 }
 
 void PathSender::timeCB(const ros::TimerEvent& event)
-{
-    if(!path_get)
-    {
-      if(initial_num_get && end_num_get)
-      {
-          path= paths[initial_num-1];//将起点到第一个转运站的路径加入
-          path.emplace_back(Transit_hub[initial_num]);//中枢入口
-          path.emplace_back(Transit_hub[end_num]);//中枢出口
-          std::vector<geometry_msgs::Point> temp_path=paths[end_num-1];
-          std::reverse(temp_path.begin(),temp_path.end());//将终点到第转运站的路径倒序
-          path.insert(path.end(),temp_path.begin(), temp_path.end());//将转运站到终点的路径加入
+{ if(end_num_get){
+    static int last_end_num = 1;
+    if (end_num != last_end_num)
+    {   initial_num = last_end_num;
+        last_end_num = end_num;}
+            path.clear();
+            path = paths[initial_num-1];
+            path.emplace_back(Transit_hub[initial_num]);
+            path.emplace_back(Transit_hub[end_num]);
+
+            std::vector<geometry_msgs::Point> temp_path = paths[end_num-1];
+            std::reverse(temp_path.begin(), temp_path.end());
+            path.insert(path.end(), temp_path.begin(), temp_path.end());
+
         //   path.emplace_back(end_point[end_num]);//终点后面一点
         //   geometry_msgs::Point temp_point;
         //   temp_point.x=end_point[end_num].x;
         //   temp_point.y=end_point[end_num].y;
         //   temp_point.z=end_point[end_num].z;
-        //   path.emplace_back(temp_point);//终点后面一点向上150m
-        //   temp_point.x=end_point[initial_num].x;
-        //   temp_point.y=end_point[initial_num].y;
-        //   temp_point.z=end_point[initial_num].z;
-        //   path.emplace_back(temp_point);//起点后面一点向上150m
-        //   path.emplace_back(end_point[initial_num]);//起点后面一点
-        //   path.emplace_back(station[initial_num]);//起点后面一点
-        //   std::cout<<"path_get"<<std::endl;
-
-          path_get=true;
-      }
+        
+            path_sender::WayPoints msg;
+            msg.points = path;
+            waypoint_publisher.publish(msg);
     }
-    else
-    {
-      path_sender::WayPoints path;
-      path.points = this->path;
-      waypoint_publisher.publish(path);
     }
-
-}
-
 
 
 
