@@ -82,6 +82,7 @@ namespace ego_planner
     Eigen::Quaterniond q_gps_ema_;
     Eigen::Quaterniond R_world_odom_;
     bool R_offset_init_ = false;
+    int gps_cb_count_ = 0;
     double z_offset_ = 0.0;
     bool z_offset_init_ = false;
 

@@ -491,13 +491,14 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
         gps_pos_.pose.position.y = alpha_xy * raw_gps.pose.position.y + (1.0 - alpha_xy) * gps_pos_.pose.position.y;
         // z handled by odometryCallback using FAST-LIO + z_offset_
         q_gps_ema_ = q_gps_ema_.slerp(alpha_ori, q_raw);
+        gps_cb_count_++;
 
-        if (!R_offset_init_ && have_odom_) {
+        if (!R_offset_init_ && have_odom_ && gps_cb_count_ >= 5) {
           Eigen::Quaterniond q_odom(odom_.pose.pose.orientation.w,
                                     odom_.pose.pose.orientation.x,
                                     odom_.pose.pose.orientation.y,
                                     odom_.pose.pose.orientation.z);
-          R_world_odom_ = q_raw * q_odom.inverse();
+          R_world_odom_ = q_gps_ema_ * q_odom.inverse();
           R_offset_init_ = true;
         }
       }
