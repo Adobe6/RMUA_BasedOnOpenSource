@@ -484,12 +484,14 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
       if (dt > 0.005) {
         last_gps_time_ = msg->header.stamp;
         double speed = odom_vel_.norm();
-        double tau = (speed < 2.0) ? 0.5 : (speed > 8.0 ? 0.1 : 0.5 - (speed - 2.0) * 0.4 / 6.0);
-        double alpha = 1.0 - exp(-dt / tau);
-        double alpha_ori = std::max(alpha, 0.15);
-        gps_pos_.pose.position.x = alpha * raw_gps.pose.position.x + (1.0 - alpha) * gps_pos_.pose.position.x;
-        gps_pos_.pose.position.y = alpha * raw_gps.pose.position.y + (1.0 - alpha) * gps_pos_.pose.position.y;
-        gps_pos_.pose.position.z = alpha * raw_gps.pose.position.z + (1.0 - alpha) * gps_pos_.pose.position.z;
+        double tau_xy = (speed < 2.0) ? 0.5 : (speed > 8.0 ? 0.1 : 0.5 - (speed - 2.0) * 0.4 / 6.0);
+        double tau_z  = tau_xy * 2.0;
+        double alpha_xy = 1.0 - exp(-dt / tau_xy);
+        double alpha_z  = 1.0 - exp(-dt / tau_z);
+        double alpha_ori = std::max(alpha_xy, 0.15);
+        gps_pos_.pose.position.x = alpha_xy * raw_gps.pose.position.x + (1.0 - alpha_xy) * gps_pos_.pose.position.x;
+        gps_pos_.pose.position.y = alpha_xy * raw_gps.pose.position.y + (1.0 - alpha_xy) * gps_pos_.pose.position.y;
+        gps_pos_.pose.position.z = alpha_z  * raw_gps.pose.position.z + (1.0 - alpha_z)  * gps_pos_.pose.position.z;
         q_gps_ema_ = q_gps_ema_.slerp(alpha_ori, q_raw);
 
         if (!R_offset_init_ && have_odom_) {
