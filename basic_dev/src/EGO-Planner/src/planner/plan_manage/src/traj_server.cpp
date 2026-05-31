@@ -297,6 +297,9 @@ void cmdCallback(const ros::TimerEvent &e)
     jer = Eigen::Vector3d::Zero();
   }
 
+  yaw_yawdot = calculate_yaw(t_cur, pos, (time_now - time_last).toSec());
+  time_last = time_now;
+
   quadrotor_msgs::PositionCommand pos_cmd;
   pos_cmd.header.stamp = time_now;
   pos_cmd.header.frame_id = "odom";
@@ -312,47 +315,11 @@ void cmdCallback(const ros::TimerEvent &e)
   pos_cmd.jerk.x = jer(0);
   pos_cmd.jerk.y = jer(1);
   pos_cmd.jerk.z = jer(2);
-  pos_cmd.yaw = first_yaw_;
+  pos_cmd.yaw = yaw_yawdot.first;
+  pos_cmd.yaw_dot = yaw_yawdot.second;
   position_cmd_pub.publish(pos_cmd);
 
   // quadrotor_msgs::PositionCommand pos_cmd;
-  // pos_cmd.header.stamp = time_now;
-  // pos_cmd.header.frame_id = "odom";
-  // pos_cmd.position.x = 0.0;
-  // pos_cmd.position.y = 0.0;
-  // pos_cmd.position.z = 0.0;
-  // pos_cmd.velocity.x = 2.0;
-  // pos_cmd.velocity.y = 0.0;
-  // pos_cmd.velocity.z = 0.0;
-  // pos_cmd.acceleration.x = 0.0;
-  // pos_cmd.acceleration.y = 0.0;
-  // pos_cmd.acceleration.z = 0.0;
-  // pos_cmd.jerk.x = 0.0;
-  // pos_cmd.jerk.y = 0.0;
-  // pos_cmd.jerk.z = 0.0;
-  // yaw_yawdot = calculate_yaw(t_cur, pos, (time_now - time_last).toSec());
-  // pos_cmd.yaw = 0.0;
-  // position_cmd_pub.publish(pos_cmd);
-
-  time_last = time_now;
-
-  // double cos_yaw = cos(yaw_);
-  // double sin_yaw = sin(yaw_);
-  // Eigen::Vector3d vel_drone;
-  // vel_drone(0) = cos_yaw * vel(0) + sin_yaw * vel(1);
-  // vel_drone(1) = -sin_yaw * vel(0) + cos_yaw * vel(1);
-  // vel_drone(2) = vel(2);
-
-  // vel = vel_drone;
-
-  // /*** calculate yaw ***/
-  // yaw_yawdot = calculate_yaw(t_cur, pos, (time_now - time_last).toSec());
-  // // Update last values
-  // time_last = time_now;
-  // last_pos_ = pos;
-
-  //   // publish
-  //   publish_cmd(pos, vel, acc, jer, yaw_yawdot.first, yaw_yawdot.second);
 }
 
 int main(int argc, char **argv)
