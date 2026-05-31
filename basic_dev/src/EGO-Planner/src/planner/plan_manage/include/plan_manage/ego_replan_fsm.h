@@ -79,6 +79,7 @@ namespace ego_planner
     ros::Time last_gps_time_;
     nav_msgs::Odometry odom_;
     geometry_msgs::PoseStamped gps_pos_;
+    Eigen::Quaterniond q_gps_ema_;
 
     bool have_trigger_, have_target_, have_odom_, have_new_target_, have_recv_pre_agent_, touch_goal_, mandatory_stop_;
     FSM_EXEC_STATE exec_state_;

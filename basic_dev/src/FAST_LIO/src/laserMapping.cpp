@@ -712,18 +712,9 @@ void publish_odometry(const ros::Publisher & pubOdomAftMapped)
     odomAftMapped.header.stamp = ros::Time().now();// ros::Time().fromSec(lidar_end_time);
     set_posestamp(odomAftMapped.pose);
     set_velstamp(odomAftMapped.twist);
+    for (int i = 0; i < 36; i++)
+        odomAftMapped.pose.covariance[i] = (i % 7 == 0) ? 0.01 : 0.0;
     pubOdomAftMapped.publish(odomAftMapped);
-    auto P = kf.get_P();
-    for (int i = 0; i < 6; i ++)
-    {
-        int k = i < 3 ? i + 3 : i - 3;
-        odomAftMapped.pose.covariance[i*6 + 0] = 1e-6;
-        odomAftMapped.pose.covariance[i*6 + 1] = 1e-6;
-        odomAftMapped.pose.covariance[i*6 + 2] = 1e-6;
-        odomAftMapped.pose.covariance[i*6 + 3] = 1e-6;
-        odomAftMapped.pose.covariance[i*6 + 4] = 1e-6;
-        odomAftMapped.pose.covariance[i*6 + 5] = 1e-6;
-    }
 
     static tf::TransformBroadcaster br;
     tf::Transform transform;

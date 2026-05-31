@@ -457,9 +457,14 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
     m.getRotation(new_q);
     raw_gps.pose.orientation = tf2::toMsg(new_q);
 
-    const double alpha = 0.3;
+    Eigen::Quaterniond q_raw(raw_gps.pose.orientation.w,
+                             raw_gps.pose.orientation.x,
+                             raw_gps.pose.orientation.y,
+                             raw_gps.pose.orientation.z);
+
     if (!flag_gps_init_) {
       gps_pos_ = raw_gps;
+      q_gps_ema_ = q_raw;
       last_gps_time_ = msg->header.stamp;
       flag_gps_init_ = true;
     } else {
@@ -472,8 +477,12 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
         gps_pos_.pose.position.x = alpha * raw_gps.pose.position.x + (1.0 - alpha) * gps_pos_.pose.position.x;
         gps_pos_.pose.position.y = alpha * raw_gps.pose.position.y + (1.0 - alpha) * gps_pos_.pose.position.y;
         gps_pos_.pose.position.z = alpha * raw_gps.pose.position.z + (1.0 - alpha) * gps_pos_.pose.position.z;
+        q_gps_ema_ = q_gps_ema_.slerp(alpha, q_raw);
       }
-      gps_pos_.pose.orientation = raw_gps.pose.orientation;
+      gps_pos_.pose.orientation.x = q_gps_ema_.x();
+      gps_pos_.pose.orientation.y = q_gps_ema_.y();
+      gps_pos_.pose.orientation.z = q_gps_ema_.z();
+      gps_pos_.pose.orientation.w = q_gps_ema_.w();
     }
   }
 
