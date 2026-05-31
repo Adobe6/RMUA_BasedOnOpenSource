@@ -353,6 +353,18 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
                            final_goal_(0), final_goal_(1), final_goal_(2)};
         wp_status_pub_.publish(status_msg);
 
+        if (R_offset_init_) {
+          Eigen::Quaterniond q_odom(odom_.pose.pose.orientation.w,
+                                    odom_.pose.pose.orientation.x,
+                                    odom_.pose.pose.orientation.y,
+                                    odom_.pose.pose.orientation.z);
+          Eigen::Quaterniond q_aligned = R_world_odom_ * q_odom;
+          gps_pos_.pose.orientation.w = q_aligned.w();
+          gps_pos_.pose.orientation.x = q_aligned.x();
+          gps_pos_.pose.orientation.y = q_aligned.y();
+          gps_pos_.pose.orientation.z = q_aligned.z();
+        }
+
         visualization_msgs::Marker marker;
         marker.header.frame_id = "odom";
         marker.header.stamp = ros::Time::now();
@@ -474,10 +486,20 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
         double speed = odom_vel_.norm();
         double tau = (speed < 2.0) ? 0.5 : (speed > 8.0 ? 0.1 : 0.5 - (speed - 2.0) * 0.4 / 6.0);
         double alpha = 1.0 - exp(-dt / tau);
+        double alpha_ori = std::max(alpha, 0.15);
         gps_pos_.pose.position.x = alpha * raw_gps.pose.position.x + (1.0 - alpha) * gps_pos_.pose.position.x;
         gps_pos_.pose.position.y = alpha * raw_gps.pose.position.y + (1.0 - alpha) * gps_pos_.pose.position.y;
         gps_pos_.pose.position.z = alpha * raw_gps.pose.position.z + (1.0 - alpha) * gps_pos_.pose.position.z;
-        q_gps_ema_ = q_gps_ema_.slerp(alpha, q_raw);
+        q_gps_ema_ = q_gps_ema_.slerp(alpha_ori, q_raw);
+
+        if (!R_offset_init_ && have_odom_) {
+          Eigen::Quaterniond q_odom(odom_.pose.pose.orientation.w,
+                                    odom_.pose.pose.orientation.x,
+                                    odom_.pose.pose.orientation.y,
+                                    odom_.pose.pose.orientation.z);
+          R_world_odom_ = q_raw * q_odom.inverse();
+          R_offset_init_ = true;
+        }
       }
       gps_pos_.pose.orientation.x = q_gps_ema_.x();
       gps_pos_.pose.orientation.y = q_gps_ema_.y();
