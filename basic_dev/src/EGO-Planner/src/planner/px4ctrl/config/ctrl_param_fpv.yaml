@@ -93,7 +93,7 @@ gain:
         thresh: 0.1
         Kp0: 1 #1.5
         Kp1: 1 #5
-        Kp2: 1.2
+        Kp2: 0.8
         Kpd0: 0
         Kpd1: 0
         Kpd2: 0
@@ -105,10 +105,10 @@ gain:
         Kvi2: 0.0
         Kvd0: 0.05
         Kvd1: 0.05
-        Kvd2: 0.05
+        Kvd2: 0.12
         Ka0: 1.0
         Ka1: 1.0
-        Ka2: 1.2
+        Ka2: 1.5
         Kyaw: 3.0 # 15.0
         Krp: 4.5 #25
         Kdrp: 0.1 #25
