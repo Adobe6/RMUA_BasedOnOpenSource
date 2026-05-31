@@ -82,6 +82,8 @@ namespace ego_planner
     Eigen::Quaterniond q_gps_ema_;
     Eigen::Quaterniond R_world_odom_;
     bool R_offset_init_ = false;
+    double z_offset_ = 0.0;
+    bool z_offset_init_ = false;
 
     bool have_trigger_, have_target_, have_odom_, have_new_target_, have_recv_pre_agent_, touch_goal_, mandatory_stop_;
     FSM_EXEC_STATE exec_state_;
