@@ -1,7 +1,30 @@
 #include "imu_gps_odometry.hpp"
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
+#include <path_sender/WayPoints.h>
+#include <std_msgs/Float64MultiArray.h>
 
+
+int g_waypoint_cnt = 0;
+int g_remaining_wps = 0;
+double g_dist_to_next = 0;
+double g_next_wp_x = 0, g_next_wp_y = 0, g_next_wp_z = 0;
+
+void waypoints_cb(const path_sender::WayPoints::ConstPtr& msg)
+{
+    g_waypoint_cnt = msg->points.size();
+}
+
+void wp_status_cb(const std_msgs::Float64MultiArray::ConstPtr& msg)
+{
+    if (msg->data.size() >= 5) {
+        g_remaining_wps = (int)msg->data[0];
+        g_dist_to_next  = msg->data[1];
+        g_next_wp_x     = msg->data[2];
+        g_next_wp_y     = msg->data[3];
+        g_next_wp_z     = msg->data[4];
+    }
+}
 
 int main(int argc, char** argv)
 {
@@ -15,9 +38,26 @@ int main(int argc, char** argv)
     ros::Subscriber imu_suber = n.subscribe<sensor_msgs::Imu>("airsim_node/drone_1/imu/imu", 1, imu_cb);//imu数据
     ros::Subscriber init_pose_suber = n.subscribe<geometry_msgs::PoseStamped>("/airsim_node/initial_pose", 1, init_pose_ned_cb);
     ros::Subscriber pose_gt_suber = n.subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/debug/pose_gt", 1, pose_gt_ned_cb);
+    ros::Subscriber waypoints_suber = n.subscribe("/waypoints", 1, waypoints_cb);
+    ros::Subscriber wp_status_suber = n.subscribe("/wp_status", 1, wp_status_cb);
+
     ros::Rate loop_rate(100);
     while(ros::ok()){
         ros::spinOnce();
+        static int cnt = 0;
+        if (++cnt >= 100) {
+            cnt = 0;
+            double dist = sqrt(
+                (latest_gps.pose.position.x - gt_odom.pose.position.x) *
+                (latest_gps.pose.position.x - gt_odom.pose.position.x) +
+                (latest_gps.pose.position.y - gt_odom.pose.position.y) *
+                (latest_gps.pose.position.y - gt_odom.pose.position.y) +
+                (latest_gps.pose.position.z - gt_odom.pose.position.z) *
+                (latest_gps.pose.position.z - gt_odom.pose.position.z));
+            ROS_INFO("GPS vs GT: %.2f m remaining_wps=%d dist_to_next=%.1f m next_wp=[%.1f %.1f %.1f]",
+                     dist, g_remaining_wps, g_dist_to_next,
+                     g_next_wp_x, g_next_wp_y, g_next_wp_z);
+        }
         loop_rate.sleep();
     }
     delete g_eskf_ptr;
@@ -44,9 +84,7 @@ void pose_gt_ned_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
 
 void odom_local_ned_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
 {
-    // ROS_INFO("Get odom_local_ned_cd\n  orientation: %f-%f-%f-%f\n  position: %f-%f-%f\n", 
-    // msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z, //姿态四元数
-    // msg->pose.position.x, msg->pose.position.y,msg->pose.position.z);
+    latest_gps = *msg;
     odo_cnt ++;
     g_eskf_ptr->correct(Eigen::Vector3d(msg->pose.position.x, msg->pose.position.y,msg->pose.position.z), 
         Eigen::Quaterniond(msg->pose.orientation.w,msg->pose.orientation.x, msg->pose.orientation.y,msg->pose.orientation.z));
@@ -91,10 +129,10 @@ void imu_cb(const sensor_msgs::Imu::ConstPtr& msg)
         double roll_error, pitch_error, yaw_error;
         tf::Matrix3x3(tf::Quaternion(q_error.x(), q_error.y(), q_error.z(), q_error.w())).getRPY(roll_error, pitch_error, yaw_error);
 
-        // Output the errors
-        std::cout << "Position error: " << pos_error.transpose() << std::endl;
-        std::cout << "Roll error: " << roll_error / 3.1415 * 180.0 << std::endl;
-        std::cout << "Pitch error: " << pitch_error / 3.1415 * 180.0 << std::endl;
-        std::cout << "Yaw error: " << yaw_error / 3.1415 * 180.0 << std::endl;
+        // Output the errors (silenced)
+        // std::cout << "Position error: " << pos_error.transpose() << std::endl;
+        // std::cout << "Roll error: " << roll_error / 3.1415 * 180.0 << std::endl;
+        // std::cout << "Pitch error: " << pitch_error / 3.1415 * 180.0 << std::endl;
+        // std::cout << "Yaw error: " << yaw_error / 3.1415 * 180.0 << std::endl;
     }
 }

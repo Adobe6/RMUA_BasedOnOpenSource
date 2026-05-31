@@ -87,7 +87,7 @@ public:
     void gps_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg);
     void POintSet();
     double dist3D(const geometry_msgs::Point& a,const geometry_msgs::Point& b);
-    ros::Publisher waypoint_publisher, edited_gps_publisher;
+    ros::Publisher waypoint_publisher, edited_gps_publisher, wp_marker_pub_;
     geometry_msgs::Point station[13];
     geometry_msgs::Point Transit_hub[13];
     geometry_msgs::Point end_point[13];

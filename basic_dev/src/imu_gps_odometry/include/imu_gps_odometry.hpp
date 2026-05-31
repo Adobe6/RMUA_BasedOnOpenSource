@@ -21,6 +21,7 @@ ErrorStateKalmanFilter* g_eskf_ptr;
 int odo_cnt = 0;
 ros::Publisher g_eskf_odom_puber;
 geometry_msgs::PoseStamped gt_odom;
+geometry_msgs::PoseStamped latest_gps;
 void odom_local_ned_cb(const geometry_msgs::PoseStamped::ConstPtr& msg);
 void init_pose_ned_cb(const geometry_msgs::PoseStamped::ConstPtr& msg);
 void pose_gt_ned_cb(const geometry_msgs::PoseStamped::ConstPtr& msg);

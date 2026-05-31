@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
+#include <visualization_msgs/Marker.h>
 
 int main(int argc, char** argv)
 {
@@ -95,10 +96,11 @@ PathSender::PathSender(ros::NodeHandle *nh)
     initial_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/initial_pose", 1, std::bind(&PathSender::initial_pose_cb, this, std::placeholders::_1));//状态真值，用于赛道一
     end_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/end_goal", 1, std::bind(&PathSender::end_pose_cb, this, std::placeholders::_1));//状态真值，用于赛道一
     gps_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/gps", 1, std::bind(&PathSender::gps_pose_cb, this, std::placeholders::_1));
-     timer = nh->createTimer(ros::Duration(2.0),&PathSender::timeCB,this);
+     timer = nh->createTimer(ros::Duration(1.0),&PathSender::timeCB,this);
 
     waypoint_publisher = nh->advertise<path_sender::WayPoints>("/waypoints", 1);
     edited_gps_publisher = nh->advertise<geometry_msgs::PoseWithCovarianceStamped>("/airsim_node/drone_1/edited_gps", 1);
+    wp_marker_pub_ = nh->advertise<visualization_msgs::Marker>("/vis_wp_world", 10);
 
     ros::spin();
 }
@@ -118,7 +120,7 @@ void PathSender::initial_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg
     {
       initial_num = i;
       initial_num_get = true;
-      ROS_WARN("initial_num_get = true;");
+      ROS_INFO("initial_num_get = true;");
       break;
     }
   }    
@@ -144,7 +146,7 @@ void PathSender::end_pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
       temp_end_goal.x = msg->pose.position.x;
       temp_end_goal.y = msg->pose.position.y;
       temp_end_goal.z = msg->pose.position.z; 
-      ROS_WARN("end_num_get = true;");
+      ROS_INFO("end_num_get = true;");
       break;
     }
   }
@@ -222,7 +224,7 @@ void PathSender::timeCB(const ros::TimerEvent& event)
             initial_num = next_initial_num;
             next_initial_num = end_num;
         }
-        ROS_WARN("next_initial_num=%d,initial_num=%d,end_num=%d",
+        ROS_INFO("next_initial_num=%d,initial_num=%d,end_num=%d",
                 next_initial_num,initial_num,end_num
             );
           path= paths[initial_num-1];//将起点到第一个转运站的路径加入
@@ -239,7 +241,7 @@ void PathSender::timeCB(const ros::TimerEvent& event)
           path_sender::WayPoints path;
           path.points = this->path;
           waypoint_publisher.publish(path);
-          ROS_ERROR("path_get=true;");
+          ROS_INFO("path_get=true; waypoints=%zu", this->path.size());
       }
     }
     else
@@ -247,17 +249,36 @@ void PathSender::timeCB(const ros::TimerEvent& event)
       path_sender::WayPoints path;
       path.points = this->path;
       waypoint_publisher.publish(path);
-      ROS_WARN("--SENDING--");
+      // ROS_INFO("--SENDING-- waypoints=%zu", this->path.size());
       if(!initial_path_done)initial_path_done = true;
         
     }  
-    static int cnt = 0;
-    if(cnt++ % 5 == 0) {
-            ROS_ERROR("DEBUG: path_get=%d, initial_num=%d,end_num=%d", 
-                    path_get,initial_num,end_num);
-            ROS_ERROR("DEBUG: current_pos=[%.1f,%.1f,%.1f],initial_num_get=%d,end_num_get=%d", 
-                    current_pos_.x, current_pos_.y, current_pos_.z,initial_num_get,end_num_get);
-    }        
+    // static int cnt = 0;
+    // if(cnt++ % 5 == 0) {
+    //         ROS_ERROR("DEBUG: waypoints=%zu path_get=%d, initial_num=%d,end_num=%d", 
+    //                 this->path.size(), path_get,initial_num,end_num);
+    //         ROS_ERROR("DEBUG: current_pos=[%.1f,%.1f,%.1f],initial_num_get=%d,end_num_get=%d", 
+    //                 current_pos_.x, current_pos_.y, current_pos_.z,initial_num_get,end_num_get);
+    // }
+
+    if (path_get && !this->path.empty()) {
+      visualization_msgs::Marker marker;
+      marker.header.frame_id = "odom";
+      marker.header.stamp = ros::Time::now();
+      marker.ns = "wp_world";
+      marker.id = 0;
+      marker.type = visualization_msgs::Marker::LINE_STRIP;
+      marker.action = visualization_msgs::Marker::ADD;
+      marker.scale.x = 0.3;
+      marker.color.r = 0.0;
+      marker.color.g = 0.0;
+      marker.color.b = 1.0;
+      marker.color.a = 0.8;
+      marker.pose.orientation.w = 1.0;
+      for (auto& pt : this->path)
+        marker.points.push_back(pt);
+      wp_marker_pub_.publish(marker);
+    }
 }
 
 double PathSender::dist3D(const geometry_msgs::Point& a,const geometry_msgs::Point& b)

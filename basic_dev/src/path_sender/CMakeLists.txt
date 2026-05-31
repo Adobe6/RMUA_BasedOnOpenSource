@@ -22,8 +22,9 @@ geographic_msgs
 geometry_msgs
 std_srvs
 tf2
-tf2_ros
-tf2_sensor_msgs
+  tf2_ros
+  tf2_sensor_msgs
+  visualization_msgs
 tf2_geometry_msgs
 image_transport
 OpenCV

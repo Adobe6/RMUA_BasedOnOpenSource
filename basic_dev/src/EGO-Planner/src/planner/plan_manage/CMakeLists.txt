@@ -25,6 +25,7 @@ find_package(catkin REQUIRED COMPONENTS
   px4ctrl
   path_sender
   tf2_ros
+  visualization_msgs
 )
 
 # catkin_package(CATKIN_DEPENDS message_runtime)

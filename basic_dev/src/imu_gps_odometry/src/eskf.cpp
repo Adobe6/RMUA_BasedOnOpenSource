@@ -47,7 +47,7 @@ bool ErrorStateKalmanFilter::Predict(Eigen::Vector3d imu_acc, Eigen::Vector3d im
         return false;
     }
     m_mtx.lock();
-    std::cout<<"delta sec: "<<delta_t<<std::endl;
+    // std::cout<<"delta sec: "<<delta_t<<std::endl;
     Eigen::Vector3d unbias_gyr = imu_gyr - m_gyro_bias;
     Eigen::Vector3d phi = (unbias_gyr +m_last_unbias_gyr) / 2.0 * delta_t;
     double phi_norm = phi.norm();

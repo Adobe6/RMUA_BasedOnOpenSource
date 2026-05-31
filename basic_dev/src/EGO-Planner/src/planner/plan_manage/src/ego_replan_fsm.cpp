@@ -1,6 +1,8 @@
 
 #include <plan_manage/ego_replan_fsm.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <std_msgs/Float64MultiArray.h>
+#include <visualization_msgs/Marker.h>
 
 geometry_msgs::Point temp_path_end_={};
 namespace ego_planner
@@ -84,7 +86,7 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
 
     odom_sub_ = nh.subscribe("odom_world", 1, &EGOReplanFSM::odometryCallback, this);
     mandatory_stop_sub_ = nh.subscribe("mandatory_stop", 1, &EGOReplanFSM::mandatoryStopCallback, this);
-    gps_pose_sub_ = nh.subscribe("/airsim_node/drone_1/debug/pose_gt", 1, &EGOReplanFSM::gpsPoseCallback, this);
+    gps_pose_sub_ = nh.subscribe("/airsim_node/drone_1/gps", 1, &EGOReplanFSM::gpsPoseCallback, this);
 
     /* Use MINCO trajectory to minimize the message size in wireless communication */
     broadcast_ploytraj_pub_ = nh.advertise<traj_utils::MINCOTraj>("planning/broadcast_traj_send", 10);
@@ -97,6 +99,8 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
     data_disp_pub_ = nh.advertise<traj_utils::DataDisp>("planning/data_display", 100);
     heartbeat_pub_ = nh.advertise<std_msgs::Empty>("planning/heartbeat", 10);
     ground_height_pub_ = nh.advertise<std_msgs::Float64>("/ground_height_measurement", 10);
+    wp_status_pub_ = nh.advertise<std_msgs::Float64MultiArray>("/wp_status", 10);
+    wp_odom_marker_pub_ = nh.advertise<visualization_msgs::Marker>("/vis_wp_odom", 10);
 
     if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
     {
@@ -232,7 +236,7 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
       }
       else
       {
-        std::cout << (final_goal_ - odom_pos_).norm() << std::endl;
+        std::cout << "dist_to_goal: " << (final_goal_ - odom_pos_).norm() << std::endl;
         changeFSMExecState(REPLAN_TRAJ, "FSM");
       }
 
@@ -338,6 +342,44 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
     data_disp_.header.stamp = ros::Time::now();
     data_disp_pub_.publish(data_disp_);
 
+    {
+      static int output_cnt = 0;
+      if (++output_cnt >= 100) {
+        output_cnt = 0;
+        double dist_to_next = (final_goal_ - odom_pos_).norm();
+        int remaining = waypoint_num_ - wpt_id_;
+        std_msgs::Float64MultiArray status_msg;
+        status_msg.data = {(double)remaining, dist_to_next,
+                           final_goal_(0), final_goal_(1), final_goal_(2)};
+        wp_status_pub_.publish(status_msg);
+
+        visualization_msgs::Marker marker;
+        marker.header.frame_id = "odom";
+        marker.header.stamp = ros::Time::now();
+        marker.ns = "wp_odom";
+        marker.id = 0;
+        marker.type = visualization_msgs::Marker::SPHERE_LIST;
+        marker.action = visualization_msgs::Marker::ADD;
+        marker.scale.x = 0.5;
+        marker.scale.y = 0.5;
+        marker.scale.z = 0.5;
+        marker.color.r = 1.0;
+        marker.color.g = 0.0;
+        marker.color.b = 0.0;
+        marker.color.a = 0.8;
+        marker.pose.orientation.w = 1.0;
+        for (int i = wpt_id_; i < waypoint_num_; i++) {
+          Eigen::Vector3d wp = flag_gps_init_
+              ? transformWaypointToA(wps_[i], odom_, gps_pos_)
+              : wps_[i];
+          geometry_msgs::Point pt;
+          pt.x = wp(0); pt.y = wp(1); pt.z = wp(2);
+          marker.points.push_back(pt);
+        }
+        wp_odom_marker_pub_.publish(marker);
+      }
+    }
+
   force_return:;
     exec_timer_.start();
   }
@@ -395,13 +437,12 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
 
   void EGOReplanFSM::gpsPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg)
   {
-    gps_pos_ = *msg;
-
-    gps_pos_.pose.position.y = -gps_pos_.pose.position.y;
-    gps_pos_.pose.position.z = -gps_pos_.pose.position.z;
+    geometry_msgs::PoseStamped raw_gps = *msg;
+    raw_gps.pose.position.y = -raw_gps.pose.position.y;
+    raw_gps.pose.position.z = -raw_gps.pose.position.z;
 
     tf2::Quaternion q;
-    tf2::fromMsg(gps_pos_.pose.orientation, q);
+    tf2::fromMsg(raw_gps.pose.orientation, q);
     tf2::Matrix3x3 m(q);
 
     tf2::Matrix3x3 transform(
@@ -414,9 +455,26 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
 
     tf2::Quaternion new_q;
     m.getRotation(new_q);
+    raw_gps.pose.orientation = tf2::toMsg(new_q);
 
-    gps_pos_.pose.orientation = tf2::toMsg(new_q);
-    flag_gps_init_ = true;
+    const double alpha = 0.3;
+    if (!flag_gps_init_) {
+      gps_pos_ = raw_gps;
+      last_gps_time_ = msg->header.stamp;
+      flag_gps_init_ = true;
+    } else {
+      double dt = (msg->header.stamp - last_gps_time_).toSec();
+      if (dt > 0.005) {
+        last_gps_time_ = msg->header.stamp;
+        double speed = odom_vel_.norm();
+        double tau = (speed < 2.0) ? 0.5 : (speed > 8.0 ? 0.1 : 0.5 - (speed - 2.0) * 0.4 / 6.0);
+        double alpha = 1.0 - exp(-dt / tau);
+        gps_pos_.pose.position.x = alpha * raw_gps.pose.position.x + (1.0 - alpha) * gps_pos_.pose.position.x;
+        gps_pos_.pose.position.y = alpha * raw_gps.pose.position.y + (1.0 - alpha) * gps_pos_.pose.position.y;
+        gps_pos_.pose.position.z = alpha * raw_gps.pose.position.z + (1.0 - alpha) * gps_pos_.pose.position.z;
+      }
+      gps_pos_.pose.orientation = raw_gps.pose.orientation;
+    }
   }
 
   void EGOReplanFSM::checkCollisionCallback(const ros::TimerEvent &e)
@@ -651,8 +709,8 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
     {
       end_vel=(end_vel/end_vel.norm())*8;
     }
-    std::cout<<"odom_vel_: "<<odom_vel_.norm()<<std::endl;
-    std::cout<<"end_vel: "<<end_vel.norm()<<std::endl;
+    // std::cout<<"odom_vel_: "<<odom_vel_.norm()<<std::endl;
+    // std::cout<<"end_vel: "<<end_vel.norm()<<std::endl;
 
     last_wp=next_wp;
     

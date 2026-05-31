@@ -76,6 +76,7 @@ namespace ego_planner
     bool flag_escape_emergency_;
     bool flag_points_subd_;
     bool flag_gps_init_;
+    ros::Time last_gps_time_;
     nav_msgs::Odometry odom_;
     geometry_msgs::PoseStamped gps_pos_;
 
@@ -93,7 +94,7 @@ namespace ego_planner
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_;
     ros::Subscriber waypoint_sub_, odom_sub_, trigger_sub_, broadcast_ploytraj_sub_, mandatory_stop_sub_, points_sub_, gps_pose_sub_;
-    ros::Publisher poly_traj_pub_, data_disp_pub_, broadcast_ploytraj_pub_, heartbeat_pub_, ground_height_pub_;
+    ros::Publisher poly_traj_pub_, data_disp_pub_, broadcast_ploytraj_pub_, heartbeat_pub_, ground_height_pub_, wp_status_pub_, wp_odom_marker_pub_;
 
     /* state machine functions */
     void execFSMCallback(const ros::TimerEvent &e);
