@@ -294,16 +294,12 @@ Visualization Manager:
       Enabled: true
       Marker Topic: /vis_wp_world
       Name: Waypoints World (Blue)
-      Namespaces:
-        wp_world: true
       Queue Size: 10
       Value: true
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /vis_wp_odom
       Name: Waypoints Odom (Red)
-      Namespaces:
-        wp_odom: true
       Queue Size: 10
       Value: true
   Enabled: true

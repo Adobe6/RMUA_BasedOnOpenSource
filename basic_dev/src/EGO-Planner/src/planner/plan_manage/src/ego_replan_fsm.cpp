@@ -86,7 +86,7 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
 
     odom_sub_ = nh.subscribe("odom_world", 1, &EGOReplanFSM::odometryCallback, this);
     mandatory_stop_sub_ = nh.subscribe("mandatory_stop", 1, &EGOReplanFSM::mandatoryStopCallback, this);
-    gps_pose_sub_ = nh.subscribe("/airsim_node/drone_1/gps", 1, &EGOReplanFSM::gpsPoseCallback, this);
+    gps_pose_sub_ = nh.subscribe("/eskf_odom", 1, &EGOReplanFSM::gpsPoseCallback, this);
 
     /* Use MINCO trajectory to minimize the message size in wireless communication */
     broadcast_ploytraj_pub_ = nh.advertise<traj_utils::MINCOTraj>("planning/broadcast_traj_send", 10);
@@ -457,24 +457,8 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
     m.getRotation(new_q);
     raw_gps.pose.orientation = tf2::toMsg(new_q);
 
-    const double alpha = 0.3;
-    if (!flag_gps_init_) {
-      gps_pos_ = raw_gps;
-      last_gps_time_ = msg->header.stamp;
-      flag_gps_init_ = true;
-    } else {
-      double dt = (msg->header.stamp - last_gps_time_).toSec();
-      if (dt > 0.005) {
-        last_gps_time_ = msg->header.stamp;
-        double speed = odom_vel_.norm();
-        double tau = (speed < 2.0) ? 0.5 : (speed > 8.0 ? 0.1 : 0.5 - (speed - 2.0) * 0.4 / 6.0);
-        double alpha = 1.0 - exp(-dt / tau);
-        gps_pos_.pose.position.x = alpha * raw_gps.pose.position.x + (1.0 - alpha) * gps_pos_.pose.position.x;
-        gps_pos_.pose.position.y = alpha * raw_gps.pose.position.y + (1.0 - alpha) * gps_pos_.pose.position.y;
-        gps_pos_.pose.position.z = alpha * raw_gps.pose.position.z + (1.0 - alpha) * gps_pos_.pose.position.z;
-      }
-      gps_pos_.pose.orientation = raw_gps.pose.orientation;
-    }
+    gps_pos_ = raw_gps;
+    flag_gps_init_ = true;
   }
 
   void EGOReplanFSM::checkCollisionCallback(const ros::TimerEvent &e)
