@@ -293,17 +293,13 @@ Visualization Manager:
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /vis_wp_world
-      Name: Waypoints World (Blue)
-      Namespaces:
-        wp_world: true
+      Name: vis_wp_world
       Queue Size: 10
       Value: true
     - Class: rviz/Marker
       Enabled: true
       Marker Topic: /vis_wp_odom
-      Name: Waypoints Odom (Red)
-      Namespaces:
-        wp_odom: true
+      Name: vis_wp_odom
       Queue Size: 10
       Value: true
   Enabled: true
@@ -350,7 +346,7 @@ Visualization Manager:
       Name: Current View
       Near Clip Distance: 0.009999999776482582
       Pitch: 0.399796724319458
-       Target Frame: body
+      Target Frame: global
       Value: Orbit (rviz)
       Yaw: 1.277182698249817
     Saved: ~
