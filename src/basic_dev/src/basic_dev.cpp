@@ -34,8 +34,7 @@ BasicDev::BasicDev(ros::NodeHandle *nh)
     pwm_cmd.rotorPWM3 = 0.1;
 
     //无人机信息通过如下命令订阅，当收到消息时自动回调对应的函数
-    odom_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/debug/pose_gt", 1, std::bind(&BasicDev::pose_cb, this, std::placeholders::_1));//状态真值，用于赛道一
-    gps_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/gps", 1, std::bind(&BasicDev::gps_cb, this, std::placeholders::_1));//状态真值，用于赛道一
+    gps_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/gps", 1, std::bind(&BasicDev::gps_cb, this, std::placeholders::_1));//gps数据
     imu_suber = nh->subscribe<sensor_msgs::Imu>("airsim_node/drone_1/imu/imu", 1, std::bind(&BasicDev::imu_cb, this, std::placeholders::_1));//imu数据
     lidar_suber = nh->subscribe<sensor_msgs::PointCloud2>("airsim_node/drone_1/lidar", 1, std::bind(&BasicDev::lidar_cb, this, std::placeholders::_1));//imu数据
     front_left_view_suber = it->subscribe("airsim_node/drone_1/front_left/Scene", 1, std::bind(&BasicDev::front_left_view_cb, this,  std::placeholders::_1));
@@ -57,14 +56,6 @@ BasicDev::BasicDev(ros::NodeHandle *nh)
 
 BasicDev::~BasicDev()
 {
-}
-
-void BasicDev::pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
-{
-    Eigen::Quaterniond q(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
-    Eigen::Vector3d eulerAngle = q.matrix().eulerAngles(2,1,0);
-    ROS_INFO("Get pose data. time: %f, eulerangle: %f, %f, %f, posi: %f, %f, %f\n", msg->header.stamp.sec + msg->header.stamp.nsec*1e-9,
-        eulerAngle[0], eulerAngle[1], eulerAngle[2], msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
 }
 
 void BasicDev::gps_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)

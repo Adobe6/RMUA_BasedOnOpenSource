@@ -1,6 +1,5 @@
 
 #include <plan_manage/ego_replan_fsm.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 namespace ego_planner
 {
@@ -9,7 +8,7 @@ namespace ego_planner
                                      const nav_msgs::Odometry& odom_A,
                                      const geometry_msgs::PoseStamped& pose_B)
   {
-Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
+    Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
                              odom_A.pose.pose.position.y,
                              odom_A.pose.pose.position.z);
     Eigen::Quaterniond q_A_base(odom_A.pose.pose.orientation.w,
@@ -25,10 +24,10 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
                                 pose_B.pose.orientation.y,
                                 pose_B.pose.orientation.z);
     Eigen::Matrix3d q_B_br = q_B_base.toRotationMatrix();
-        Eigen::Matrix3d R = q_A_br * q_B_br.inverse();
+    Eigen::Matrix3d R = q_A_br * q_B_br.inverse();
 
     // Eigen::Quaterniond q_A_B = q_A_base * q_B_base.inverse(); // 旋转变换
-     Eigen::Vector3d p_A_B =  R*(waypoint_B-p_B_base);      // 平移变换
+    Eigen::Vector3d p_A_B =  R*(waypoint_B-p_B_base);      // 平移变换
 
     // Eigen::Vector3d waypoint_A = q_A_B * waypoint_B + p_A_B;
     
@@ -50,6 +49,7 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
     flag_points_subd_ = false;
     mandatory_stop_ = false;
     flag_gps_init_ = false;
+    pending_waypoint_plan_ = false;
 
     /*  fsm param  */
     nh.param("fsm/flight_type", target_type_, -1);
@@ -81,9 +81,12 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
     exec_timer_ = nh.createTimer(ros::Duration(0.01), &EGOReplanFSM::execFSMCallback, this);
     safety_timer_ = nh.createTimer(ros::Duration(0.05), &EGOReplanFSM::checkCollisionCallback, this);
 
+    std::string gps_pose_topic;
+    nh.param<std::string>("fsm/gps_pose_topic", gps_pose_topic, "/airsim_node/drone_1/gps");
+
     odom_sub_ = nh.subscribe("odom_world", 1, &EGOReplanFSM::odometryCallback, this);
     mandatory_stop_sub_ = nh.subscribe("mandatory_stop", 1, &EGOReplanFSM::mandatoryStopCallback, this);
-    gps_pose_sub_ = nh.subscribe("/airsim_node/drone_1/debug/pose_gt", 1, &EGOReplanFSM::gpsPoseCallback, this);
+    gps_pose_sub_ = nh.subscribe(gps_pose_topic, 1, &EGOReplanFSM::gpsPoseCallback, this);
 
     /* Use MINCO trajectory to minimize the message size in wireless communication */
     broadcast_ploytraj_pub_ = nh.advertise<traj_utils::MINCOTraj>("planning/broadcast_traj_send", 10);
@@ -220,10 +223,7 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
         do
         {
           wpt_id_++;
-          if (flag_gps_init_)
-            wp = transformWaypointToA(wps_[wpt_id_], odom_, gps_pos_);
-          else
-            wp = wps_[wpt_id_];
+          wp = waypointInOdomFrame(wps_[wpt_id_]);
         } while((odom_pos_ - wp).norm() < 8.0 && wpt_id_ < waypoint_num_ - 1);
 
         planNextWaypoint(wp);
@@ -260,10 +260,7 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
           do
           {
             wpt_id_++;
-            if (flag_gps_init_)
-              wp = transformWaypointToA(wps_[wpt_id_], odom_, gps_pos_);
-            else
-              wp = wps_[wpt_id_];
+            wp = waypointInOdomFrame(wps_[wpt_id_]);
           } while((odom_pos_ - wp).norm() < 8.0 && wpt_id_ < waypoint_num_ - 1);
 
           planNextWaypoint(wp);
@@ -283,10 +280,7 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
         do
         {
           wpt_id_++;
-          if (flag_gps_init_)
-            wp = transformWaypointToA(wps_[wpt_id_], odom_, gps_pos_);
-          else
-            wp = wps_[wpt_id_];
+          wp = waypointInOdomFrame(wps_[wpt_id_]);
         } while((odom_pos_ - wp).norm() < 8.0 && wpt_id_ < waypoint_num_ - 1);
 
         planNextWaypoint(wp);
@@ -300,7 +294,7 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
         {
           // prepare for next round
           wpt_id_ = 0;
-          planNextWaypoint(wps_[wpt_id_]);
+          planNextWaypoint(waypointInOdomFrame(wps_[wpt_id_]));
         }
 
         /* The navigation task completed */
@@ -392,28 +386,23 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
 
   void EGOReplanFSM::gpsPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg)
   {
-    gps_pos_ = *msg;
+    if (!have_odom_)
+    {
+      ROS_WARN_THROTTLE(1.0, "[EGOReplanFSM] Waiting for odometry before accepting GPS reference pose.");
+      return;
+    }
 
-    gps_pos_.pose.position.y = -gps_pos_.pose.position.y;
-    gps_pos_.pose.position.z = -gps_pos_.pose.position.z;
+    bool first_gps_reference = !flag_gps_init_;
 
-    tf2::Quaternion q;
-    tf2::fromMsg(gps_pos_.pose.orientation, q);
-    tf2::Matrix3x3 m(q);
-
-    tf2::Matrix3x3 transform(
-      1, 0, 0,
-      0, -1, 0,
-      0, 0, -1
-    );
-
-    m = transform * m * transform;
-
-    tf2::Quaternion new_q;
-    m.getRotation(new_q);
-
-    gps_pos_.pose.orientation = tf2::toMsg(new_q);
+    gps_pos_.header = msg->header;
+    gps_pos_.pose.position.x = msg->pose.position.x;
+    gps_pos_.pose.position.y = -msg->pose.position.y;
+    gps_pos_.pose.position.z = -msg->pose.position.z;
+    gps_pos_.pose.orientation = odom_.pose.pose.orientation;
     flag_gps_init_ = true;
+
+    if (first_gps_reference && pending_waypoint_plan_ && !have_target_ && waypoint_num_ > 0)
+      readGivenWpsAndPlan();
   }
 
   void EGOReplanFSM::checkCollisionCallback(const ros::TimerEvent &e)
@@ -737,13 +726,22 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
     }
   }
 
-  void EGOReplanFSM::readGivenWpsAndPlan()
+  bool EGOReplanFSM::readGivenWpsAndPlan()
   {
     if (waypoint_num_ <= 0)
     {
       ROS_ERROR("Wrong waypoint_num_ = %d", waypoint_num_);
-      return;
+      return false;
     }
+
+    if (!have_odom_ || !flag_gps_init_)
+    {
+      pending_waypoint_plan_ = true;
+      ROS_WARN_THROTTLE(1.0, "[FSM] Waiting for odometry and GPS reference before planning waypoints.");
+      return false;
+    }
+
+    pending_waypoint_plan_ = false;
 
     wps_.resize(waypoint_num_);
     for (int i = 0; i < waypoint_num_; i++)
@@ -761,7 +759,12 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
 
     // plan first global waypoint
     wpt_id_ = 0;
-    planNextWaypoint(wps_[wpt_id_]);
+    return planNextWaypoint(waypointInOdomFrame(wps_[wpt_id_]));
+  }
+
+  Eigen::Vector3d EGOReplanFSM::waypointInOdomFrame(const Eigen::Vector3d &wp) const
+  {
+    return transformWaypointToA(wp, odom_, gps_pos_);
   }
 
   void EGOReplanFSM::mandatoryStopCallback(const std_msgs::Empty &msg)
@@ -1039,14 +1042,9 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
     if (first_msg)
       return;
 
-    if (!have_odom_)
-    {
-      ROS_WARN("[WAYPOINT_CB] Updated waypoints received, but odom is not ready.");
-      return;
-    }
-
     ROS_WARN("[WAYPOINT_CB] Updated waypoint batch accepted, replanning from new batch.");
-    readGivenWpsAndPlan();
+    if (!readGivenWpsAndPlan())
+      ROS_WARN("[WAYPOINT_CB] Updated waypoint batch kept pending until odom and GPS reference are ready.");
   }
 
   bool EGOReplanFSM::measureGroundHeight(double &height)

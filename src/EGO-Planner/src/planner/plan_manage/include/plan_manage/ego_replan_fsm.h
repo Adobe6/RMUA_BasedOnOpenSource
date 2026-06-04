@@ -76,6 +76,7 @@ namespace ego_planner
     bool flag_escape_emergency_;
     bool flag_points_subd_;
     bool flag_gps_init_;
+    bool pending_waypoint_plan_;
     nav_msgs::Odometry odom_;
     geometry_msgs::PoseStamped gps_pos_;
 
@@ -114,7 +115,8 @@ namespace ego_planner
 
     /* global trajectory */
     void waypointCallback(const quadrotor_msgs::GoalSetPtr &msg);
-    void readGivenWpsAndPlan();
+    bool readGivenWpsAndPlan();
+    Eigen::Vector3d waypointInOdomFrame(const Eigen::Vector3d &wp) const;
     bool planNextWaypoint(const Eigen::Vector3d next_wp);
     bool mondifyInCollisionFinalGoal();
 

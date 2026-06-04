@@ -83,7 +83,7 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
 
     odom_sub_ = nh.subscribe("odom_world", 1, &EGOReplanFSM::odometryCallback, this);
     mandatory_stop_sub_ = nh.subscribe("mandatory_stop", 1, &EGOReplanFSM::mandatoryStopCallback, this);
-    gps_pose_sub_ = nh.subscribe("/airsim_node/drone_1/debug/pose_gt", 1, &EGOReplanFSM::gpsPoseCallback, this);
+    gps_pose_sub_ = nh.subscribe("/airsim_node/drone_1/gps", 1, &EGOReplanFSM::gpsPoseCallback, this);
 
     /* Use MINCO trajectory to minimize the message size in wireless communication */
     broadcast_ploytraj_pub_ = nh.advertise<traj_utils::MINCOTraj>("planning/broadcast_traj_send", 10);
@@ -300,7 +300,7 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
         {
           // prepare for next round
           wpt_id_ = 0;
-          planNextWaypoint(wps_[wpt_id_]);
+          planNextWaypoint(waypointInOdomFrame(wps_[wpt_id_]));
         }
 
         /* The navigation task completed */
@@ -392,27 +392,17 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
 
   void EGOReplanFSM::gpsPoseCallback(const geometry_msgs::PoseStamped::ConstPtr& msg)
   {
-    gps_pos_ = *msg;
+    if (!have_odom_)
+    {
+      ROS_WARN_THROTTLE(1.0, "[EGOReplanFSM] Waiting for odometry before accepting GPS reference pose.");
+      return;
+    }
 
-    gps_pos_.pose.position.y = -gps_pos_.pose.position.y;
-    gps_pos_.pose.position.z = -gps_pos_.pose.position.z;
-
-    tf2::Quaternion q;
-    tf2::fromMsg(gps_pos_.pose.orientation, q);
-    tf2::Matrix3x3 m(q);
-
-    tf2::Matrix3x3 transform(
-      1, 0, 0,
-      0, -1, 0,
-      0, 0, -1
-    );
-
-    m = transform * m * transform;
-
-    tf2::Quaternion new_q;
-    m.getRotation(new_q);
-
-    gps_pos_.pose.orientation = tf2::toMsg(new_q);
+    gps_pos_.header = msg->header;
+    gps_pos_.pose.position.x = msg->pose.position.x;
+    gps_pos_.pose.position.y = -msg->pose.position.y;
+    gps_pos_.pose.position.z = -msg->pose.position.z;
+    gps_pos_.pose.orientation = odom_.pose.pose.orientation;
     flag_gps_init_ = true;
   }
 
@@ -761,7 +751,12 @@ Eigen::Vector3d p_A_base(odom_A.pose.pose.position.x,
 
     // plan first global waypoint
     wpt_id_ = 0;
-    planNextWaypoint(wps_[wpt_id_]);
+    planNextWaypoint(waypointInOdomFrame(wps_[wpt_id_]));
+  }
+
+  Eigen::Vector3d EGOReplanFSM::waypointInOdomFrame(const Eigen::Vector3d &wp) const
+  {
+    return transformWaypointToA(wp, odom_, gps_pos_);
   }
 
   void EGOReplanFSM::mandatoryStopCallback(const std_msgs::Empty &msg)

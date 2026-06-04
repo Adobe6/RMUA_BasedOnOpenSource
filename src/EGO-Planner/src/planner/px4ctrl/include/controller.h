@@ -4,7 +4,6 @@
 #include <sensor_msgs/Imu.h>
 #include <mavros_msgs/AttitudeTarget.h>
 #include <airsim_ros/RotorPWM.h>
-#include <geometry_msgs/PoseStamped.h>
 #include "input.h"
 
 struct Desired_State_t
@@ -53,7 +52,6 @@ public:
 	ros::Publisher ctrl_FCU_pub;
 	ros::Publisher ctrl_PWM_pub;
 	ros::Publisher vel_pub;
-	ros::Subscriber pose_sub;
 
 	ros::Publisher debug_roll_pub;
 	ros::Publisher debug_pitch_pub;
@@ -70,7 +68,6 @@ public:
 	Eigen::Vector3d int_e_v;
     float yaw;
 	float pitch;
-	float x,y,z,w;
 	Controller(Parameter_t&);
 	void config_gain(const Parameter_t::Gain& gain);
 	void config();
@@ -98,7 +95,6 @@ public:
 	airsim_ros::RotorPWM computePWM(const double& thrust,
 																	 const Eigen::Vector3d& torque);
 	
-    void pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg);
 	void publish_ctrl(const Controller_Output_t& u, const ros::Time& stamp, bool is_init,Command_Data_t& cmd_data,float x,float y,float z,float w);
 	void publish_zero_ctrl(const ros::Time& stamp);
 

@@ -412,17 +412,6 @@ if (cnt < 100)
 	//vel_pub.publish(vel_cmd);
 
 }
-void Controller::pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
-{
-    x=msg->pose.orientation.x;
-	y=msg->pose.orientation.y;
-	z=msg->pose.orientation.z;
-	w=msg->pose.orientation.w;
-	// Eigen::Vector3d eulerAngle = q.matrix().eulerAngles(2,1,0);
-	// ROS_INFO("Get pose data. time: %f, eulerangle: %f, %f, %f, posi: %f, %f, %f\n", msg->header.stamp.sec + msg->header.stamp.nsec*1e-9,
-	// 	eulerAngle[0], eulerAngle[1], eulerAngle[2], msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
-}
-
 void Controller::publish_zero_ctrl(const ros::Time& stamp)
 {
 	mavros_msgs::AttitudeTarget msg;

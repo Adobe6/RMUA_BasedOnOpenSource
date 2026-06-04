@@ -364,9 +364,12 @@ int main(int argc, char **argv)
   // ros::NodeHandle node;
   ros::NodeHandle nh("~");
 
+  std::string odom_topic;
+  nh.param<std::string>("traj_server/odom_topic", odom_topic, "/gps_corrected_odometry");
+
   ros::Subscriber poly_traj_sub = nh.subscribe("planning/trajectory", 10, polyTrajCallback);
   ros::Subscriber heartbeat_sub = nh.subscribe("heartbeat", 10, heartbeatCallback);
-  ros::Subscriber odomtry_sub = nh.subscribe("/Odometry", 10, odometryCallback);
+  ros::Subscriber odomtry_sub = nh.subscribe(odom_topic, 10, odometryCallback);
 
 
   pos_cmd_pub = nh.advertise<airsim_ros::VelCmd>("/airsim_node/drone_1/vel_cmd_body_frame", 50);
