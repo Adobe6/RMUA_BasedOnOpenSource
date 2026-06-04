@@ -94,7 +94,7 @@ public:
     bool end_num_get = false;
     bool path_get  = false;
 
-    int initial_num, end_num;
+    int initial_num=1, end_num=3;
     std::vector<geometry_msgs::Point> path;
     PathSender(ros::NodeHandle *nh);
     void timeCB(const ros::TimerEvent& event);

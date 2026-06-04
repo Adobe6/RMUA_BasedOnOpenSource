@@ -16,7 +16,7 @@ use_yaw_rate_ctrl: false
 perform_aerodynamics_compensation: false
 
 hover:
-    use_hov_percent_kf: true
+    use_hov_percent_kf: false
     percent_lower_limit: 0.00
     percent_higher_limit: 100000
 

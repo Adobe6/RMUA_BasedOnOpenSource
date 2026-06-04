@@ -25,7 +25,6 @@ tf2_ros
 tf2_sensor_msgs
 tf2_geometry_msgs
 image_transport
-OpenCV
 cv_bridge
 pcl_ros
 pcl_conversions
@@ -50,11 +49,11 @@ catkin_package(
 )
 find_package(OpenCV REQUIRED)
 
-include_directories(include ${catkin_INCLUDE_DIRS}  ${OpenCv_INCLUDE_DIRS})
+include_directories(include ${catkin_INCLUDE_DIRS}  ${OpenCV_INCLUDE_DIRS})
 
 
 add_executable(path_sender src/path_sender.cpp )
-target_link_libraries(path_sender yaml-cpp ${catkin_LIBRARIES} ${OpenCv_LIBS})
+target_link_libraries(path_sender yaml-cpp ${catkin_LIBRARIES} ${OpenCV_LIBS})
 
 install(DIRECTORY
   launch

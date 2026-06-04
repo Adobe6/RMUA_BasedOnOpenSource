@@ -1,9 +1,9 @@
 #!/bin/bash
-
+set -e
 readonly VERSION_ROS1="ROS1"
 readonly VERSION_ROS2="ROS2"
 readonly VERSION_HUMBLE="humble"
-
+readonly ROS1_PYTHON_EXECUTABLE="${PYTHON_EXECUTABLE:-/usr/bin/python3}"
 pushd `pwd` > /dev/null
 cd `dirname $0`
 echo "Working Path: "`pwd`
@@ -55,7 +55,9 @@ fi
 pushd `pwd` > /dev/null
 if [ $ROS_VERSION = ${VERSION_ROS1} ]; then
     cd ../../
-    catkin_make -DROS_EDITION=${VERSION_ROS1}
+   catkin_make -DROS_EDITION=${VERSION_ROS1} \
+        -DCATKIN_WHITELIST_PACKAGES="livox_ros_driver2" \
+        -DPYTHON_EXECUTABLE="${ROS1_PYTHON_EXECUTABLE}"
 elif [ $ROS_VERSION = ${VERSION_ROS2} ]; then
     cd ../../
     colcon build --cmake-args -DROS_EDITION=${VERSION_ROS2} -DHUMBLE_ROS=${ROS_HUMBLE}
