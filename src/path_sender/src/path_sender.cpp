@@ -4,6 +4,7 @@
 #include <yaml-cpp/yaml.h>
 #include "path_sender.hpp"
 #include <filesystem>
+#include <ros/package.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
 
@@ -75,7 +76,9 @@ void PathSender::POintSet()
 PathSender::PathSender(ros::NodeHandle *nh)
 {  
     POintSet();
-    paths=loadPathsFromYAML(std::string("/home/m0nesy/basic_dev/src/path_sender/config/paths.yaml"));
+   paths = loadPathsFromYAML(
+    ros::package::getPath("path_sender") + "/config/paths.yaml"
+);
     //无人机信息通过如下命令订阅，当收到消息时自动回调对应的函数
     initial_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/initial_pose", 1, std::bind(&PathSender::initial_pose_cb, this, std::placeholders::_1));//官方提供的起点
     end_pose_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/end_goal", 1, std::bind(&PathSender::end_pose_cb, this, std::placeholders::_1));//官方提供的终点

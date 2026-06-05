@@ -61,7 +61,7 @@
         <remap from="~planning/heartbeat" to = "/drone_$(arg drone_id)_traj_server/heartbeat"/>
         <remap from="/goal" to = "/goal_with_id"/>
         <remap from="~grid_map/odom" to="/gps_corrected_odometry"/>
-        <remap from="~grid_map/cloud" to="/cloud_registered"/>
+        <remap from="~grid_map/cloud" to="/cloud_registered_corrected"/>
         <remap from="~grid_map/pose"   to = "/drone_$(arg drone_id)_$(arg camera_pose_topic)"/>
         <remap from="~grid_map/depth" to = "/drone_$(arg drone_id)_$(arg depth_topic)"/>
         <!-- planning fsm -->
@@ -111,7 +111,7 @@
         <param name="grid_map/local_update_range_x" value="10.0" />
         <param name="grid_map/local_update_range_y" value="10.0" />
         <param name="grid_map/local_update_range_z" value="8.0" /> <!-- different meaning between grid_map.cpp and grid_map_bigmap.cpp -->
-        <param name="grid_map/obstacles_inflation" value="0.15" />
+        <param name="grid_map/obstacles_inflation" value="0.40" />
         <param name="grid_map/local_map_margin" value="10"/>
         <param name="grid_map/enable_virtual_wall" value="true"/>
         <param name="grid_map/virtual_ceil" value="200.0"/>
@@ -160,13 +160,13 @@
         <param name="optimization/weight_swarm" value="0.0" type="double"/>
         <param name="optimization/weight_feasibility" value="100.0" type="double"/>
         <!-- 可行性权重 -->
-        <param name="optimization/weight_sqrvariance" value="100.0" type="double"/>
+        <param name="optimization/weight_sqrvariance" value="50.0" type="double"/>
         <!-- 方差权重 -->
-        <param name="optimization/weight_time" value="200.0" type="double"/>
+        <param name="optimization/weight_time" value="100.0" type="double"/>
         <!-- 时间权重 -->
-        <param name="optimization/obstacle_clearance" value="0.20" type="double"/>
+        <param name="optimization/obstacle_clearance" value="0.80" type="double"/>
         <!-- 避障容忍距离 -->
-        <param name="optimization/obstacle_clearance_soft" value="0.3" type="double"/>
+        <param name="optimization/obstacle_clearance_soft" value="1.20" type="double"/>
         <param name="optimization/swarm_clearance" value="0.0" type="double"/> <!-- heterogeneous support: my required clearance -->
         <param name="optimization/max_vel" value="$(arg max_vel)" type="double"/>
         <param name="optimization/max_acc" value="$(arg max_acc)" type="double"/>

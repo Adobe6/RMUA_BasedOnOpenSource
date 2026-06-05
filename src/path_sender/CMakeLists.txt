@@ -14,6 +14,7 @@ message_generation
 nav_msgs
 # nodelet
 roscpp
+roslib
 rospy
 sensor_msgs
 std_msgs
@@ -45,7 +46,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS message_runtime roscpp std_msgs # nodelet 
+  CATKIN_DEPENDS message_runtime roscpp roslib std_msgs # nodelet 
 )
 find_package(OpenCV REQUIRED)
 

@@ -31,4 +31,68 @@ if rg -n 'to="/Odometry"|subscribe\("/Odometry"' src/EGO-Planner/src/planner/pla
   exit 1
 fi
 
-echo "Source tree does not reference pose ground truth, and control uses GPS-corrected odometry."
+if ! rg -n "/cloud_registered_corrected" src/imu_gps_odometry src/EGO-Planner/src/planner/plan_manage/launch/include/advanced_param.xml >/dev/null; then
+  echo "GPS-corrected planning odometry must use a point cloud in the same corrected frame." >&2
+  exit 1
+fi
+
+if rg -n '<remap from="~grid_map/cloud" to="/cloud_registered"' src/EGO-Planner/src/planner/plan_manage/launch/include/advanced_param.xml; then
+  echo "Planner grid map still consumes raw FAST-LIO cloud while odom is GPS-corrected." >&2
+  exit 1
+fi
+
+python3 - <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+path = "src/EGO-Planner/src/planner/plan_manage/launch/include/advanced_param.xml"
+tree = ET.parse(path)
+minimums = {
+    "grid_map/obstacles_inflation": 0.40,
+    "optimization/obstacle_clearance": 0.80,
+    "optimization/obstacle_clearance_soft": 1.20,
+}
+
+for name, minimum in minimums.items():
+    value_text = None
+    for node in tree.iter("param"):
+        if node.attrib.get("name") == name:
+            value_text = node.attrib.get("value")
+            break
+    if value_text is None:
+        print(f"Missing safety parameter: {name}", file=sys.stderr)
+        sys.exit(1)
+    value = float(value_text)
+    if value < minimum:
+        print(f"{name}={value} is below the safety minimum {minimum}.", file=sys.stderr)
+        sys.exit(1)
+PY
+
+python3 - <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+path = "src/EGO-Planner/src/planner/plan_manage/launch/include/run_in_sim.xml"
+tree = ET.parse(path)
+maximums = {
+    "max_vel": 12.0,
+    "max_acc": 8.0,
+    "max_jer": 12.0,
+}
+
+for name, maximum in maximums.items():
+    value_text = None
+    for node in tree.iter("arg"):
+        if node.attrib.get("name") == name:
+            value_text = node.attrib.get("value")
+            break
+    if value_text is None:
+        print(f"Missing dynamic limit arg: {name}", file=sys.stderr)
+        sys.exit(1)
+    value = float(value_text)
+    if value > maximum:
+        print(f"{name}={value} is above the safety maximum {maximum}.", file=sys.stderr)
+        sys.exit(1)
+PY
+
+echo "Source tree does not reference pose ground truth, and control/planning use GPS-corrected odometry and cloud."

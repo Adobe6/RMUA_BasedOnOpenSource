@@ -10,8 +10,10 @@ int main(int argc, char** argv)
     ros::NodeHandle n; // 创建node控制句柄
     g_eskf_odom_puber = n.advertise<geometry_msgs::PoseStamped>("/eskf_odom", 1);
     g_corrected_odom_puber = n.advertise<nav_msgs::Odometry>("/gps_corrected_odometry", 20);
+    g_corrected_cloud_puber = n.advertise<sensor_msgs::PointCloud2>("/cloud_registered_corrected", 10);
     ros::Subscriber odom_suber = n.subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/gps", 1, odom_local_ned_cb);
     ros::Subscriber lio_odom_suber = n.subscribe<nav_msgs::Odometry>("/Odometry", 20, lio_odom_cb);
+    ros::Subscriber cloud_suber = n.subscribe<sensor_msgs::PointCloud2>("/cloud_registered", 5, cloud_registered_cb);
     ros::Subscriber imu_suber = n.subscribe<sensor_msgs::Imu>("airsim_node/drone_1/imu/imu", 1, imu_cb);//imu数据
     ros::Subscriber init_pose_suber = n.subscribe<geometry_msgs::PoseStamped>("/airsim_node/initial_pose", 1, init_pose_ned_cb);
     ros::Rate loop_rate(100);
@@ -46,6 +48,11 @@ static Eigen::Vector3d odomPosition(const nav_msgs::Odometry& msg)
     return Eigen::Vector3d(msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.pose.position.z);
 }
 
+static Eigen::Vector3d correctedFrameTranslation()
+{
+    return g_latest_gps_pos_in_odom - g_lio_pos_at_latest_gps;
+}
+
 static void publishCorrectedOdom()
 {
     if (!g_have_lio_odom || !g_have_gps_anchor)
@@ -53,7 +60,7 @@ static void publishCorrectedOdom()
 
     nav_msgs::Odometry corrected = g_latest_lio_odom;
     const Eigen::Vector3d lio_pos = odomPosition(g_latest_lio_odom);
-    const Eigen::Vector3d corrected_pos = g_latest_gps_pos_in_odom + (lio_pos - g_lio_pos_at_latest_gps);
+    const Eigen::Vector3d corrected_pos = lio_pos + correctedFrameTranslation();
 
     corrected.header.frame_id = g_latest_lio_odom.header.frame_id.empty() ? "odom" : g_latest_lio_odom.header.frame_id;
     corrected.pose.pose.position.x = corrected_pos.x();
@@ -68,6 +75,28 @@ void lio_odom_cb(const nav_msgs::Odometry::ConstPtr& msg)
     g_latest_lio_odom = *msg;
     g_have_lio_odom = true;
     publishCorrectedOdom();
+}
+
+void cloud_registered_cb(const sensor_msgs::PointCloud2::ConstPtr& msg)
+{
+    if (!g_have_gps_anchor)
+        return;
+
+    sensor_msgs::PointCloud2 corrected = *msg;
+    corrected.header.frame_id = g_latest_lio_odom.header.frame_id.empty() ? "odom" : g_latest_lio_odom.header.frame_id;
+
+    const Eigen::Vector3d translation = correctedFrameTranslation();
+    sensor_msgs::PointCloud2Iterator<float> iter_x(corrected, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(corrected, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(corrected, "z");
+    for (; iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z)
+    {
+        *iter_x += static_cast<float>(translation.x());
+        *iter_y += static_cast<float>(translation.y());
+        *iter_z += static_cast<float>(translation.z());
+    }
+
+    g_corrected_cloud_puber.publish(corrected);
 }
 
 void odom_local_ned_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)

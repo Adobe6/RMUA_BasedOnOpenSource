@@ -112,4 +112,3 @@
         <param name="traj_server/time_forward" value="0.05" type="double"/>
     </node>
 </launch>
-    
