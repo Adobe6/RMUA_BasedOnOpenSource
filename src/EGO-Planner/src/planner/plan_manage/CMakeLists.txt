@@ -8,6 +8,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
 find_package(Eigen3 REQUIRED)
 find_package(PCL 1.7 REQUIRED)
+find_package(OpenCV REQUIRED)
 
 find_package(catkin REQUIRED COMPONENTS
   airsim_ros
@@ -51,6 +52,7 @@ add_executable(ego_planner_node
   )
 target_link_libraries(ego_planner_node 
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
   )
 #add_dependencies(ego_planner_node ${${PROJECT_NAME}_EXPORTED_TARGETS})
 
